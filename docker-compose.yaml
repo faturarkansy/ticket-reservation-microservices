@@ -1,0 +1,48 @@
+services:
+  # Database untuk Seat Service
+  postgres-seat:
+    image: postgres:15-alpine
+    container_name: postgres-seat
+    environment:
+      POSTGRES_USER: seat_user
+      POSTGRES_PASSWORD: seat_password
+      POSTGRES_DB: seat_db
+    ports:
+      - "5431:5432"
+    volumes:
+      - seat_pgdata:/var/lib/postgresql/data
+
+  # Database untuk Booking Service
+  postgres-booking:
+    image: postgres:15-alpine
+    container_name: postgres-booking
+    environment:
+      POSTGRES_USER: booking_user
+      POSTGRES_PASSWORD: booking_password
+      POSTGRES_DB: booking_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - booking_pgdata:/var/lib/postgresql/data
+
+  # Redis untuk Real-time Seat Locking & Rate Limiting
+  redis:
+    image: redis:7-alpine
+    container_name: redis-ticket
+    ports:
+      - "6380:6379"
+
+  # RabbitMQ untuk Event-Driven Communication
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq-ticket
+    ports:
+      - "5672:5672" # AMQP Port
+      - "15672:15672" # Management Dashboard Port
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
+volumes:
+  seat_pgdata:
+  booking_pgdata:
