@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package pb;
+
+option go_package = "seat-service/pb";
+
+// Service Definisi untuk Seat Service
+service SeatService {
+  rpc GetSeats (GetSeatsRequest) returns (GetSeatsResponse);
+  rpc ReserveSeat (ReserveSeatRequest) returns (ReserveSeatResponse);
+  rpc ReleaseSeat (ReleaseSeatRequest) returns (ReleaseSeatResponse);
+}
+
+// Model Data Seat
+message Seat {
+  string id = 1;
+  string event_id = 2;
+  string seat_number = 3;
+  string status = 4; // AVAILABLE, RESERVED, BOOKED
+  double price = 5;
+}
+
+// Request & Response Messages
+message GetSeatsRequest {
+  string event_id = 1;
+}
+
+message GetSeatsResponse {
+  repeated Seat seats = 1;
+}
+
+message ReserveSeatRequest {
+  string seat_id = 1;
+  string user_id = 2;
+}
+
+message ReserveSeatResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ReleaseSeatRequest {
+  string seat_id = 1;
+}
+
+message ReleaseSeatResponse {
+  bool success = 1;
+  string message = 2;
+}
