@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package pb;
+
+option go_package = "booking-service/pb";
+
+service BookingService {
+  rpc CreateBooking (CreateBookingRequest) returns (CreateBookingResponse);
+  rpc GetBooking (GetBookingRequest) returns (GetBookingResponse);
+}
+
+message CreateBookingRequest {
+  string user_id = 1;
+  string event_id = 2;
+  string seat_id = 3;
+}
+
+message CreateBookingResponse {
+  string booking_id = 1;
+  string status = 2; // e.g., PENDING, CONFIRMED, FAILED
+  double total_price = 3;
+  string message = 4;
+}
+
+message GetBookingRequest {
+  string booking_id = 1;
+}
+
+message GetBookingResponse {
+  string booking_id = 1;
+  string user_id = 2;
+  string event_id = 3;
+  string seat_id = 4;
+  string status = 5;
+  double total_price = 6;
+}

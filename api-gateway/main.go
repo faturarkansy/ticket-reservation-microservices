@@ -7,34 +7,36 @@ import (
 
 	"api-gateway/handler"
 	"api-gateway/pb"
+	bookingpb "api-gateway/pb/bookingpb"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
-	// 1. Inisialisasi Koneksi gRPC Client ke Seat Service (:50051)
-	seatServiceAddr := "localhost:50051"
-	conn, err := grpc.Dial(seatServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	// 1. Koneksi gRPC ke Seat Service (:50051)
+	seatConn, err := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Fatalf("Failed to connect to Seat Service at %s: %v", seatServiceAddr, err)
+		log.Fatalf("Failed to connect to Seat Service: %v", err)
 	}
-	defer conn.Close()
-
-	seatClient := pb.NewSeatServiceClient(conn)
+	defer seatConn.Close()
+	seatClient := pb.NewSeatServiceClient(seatConn)
 	seatHandler := handler.NewSeatHandler(seatClient)
 
-	// 2. Setup Route Handlers
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status": "API Gateway is running"}`))
-	})
+	// 2. Koneksi gRPC ke Booking Service (:50052)
+	bookingConn, err := grpc.Dial("localhost:50052", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("Failed to connect to Booking Service: %v", err)
+	}
+	defer bookingConn.Close()
+	bookingClient := bookingpb.NewBookingServiceClient(bookingConn)
+	bookingHandler := handler.NewBookingHandler(bookingClient)
 
-	// Endpoint API REST untuk Seats
+	// 3. Register HTTP Routes
 	http.HandleFunc("/api/v1/seats", seatHandler.GetSeats)
+	http.HandleFunc("/api/v1/bookings", bookingHandler.CreateBooking)
 
-	// 3. Jalankan HTTP Server API Gateway
+	// 4. Start Server
 	port := ":8081"
 	fmt.Printf("API Gateway is running on port %s...\n", port)
 	if err := http.ListenAndServe(port, nil); err != nil {
