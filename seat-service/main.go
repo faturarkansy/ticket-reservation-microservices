@@ -42,7 +42,7 @@ func main() {
 
 	// 4. Setup gRPC Server
 	port := ":50051"
-	lis, err := net.Listen("tcp", port)
+	lis, err := net.Listen("tcp4", ":50051")
 	if err != nil {
 		panic(fmt.Sprintf("Failed to listen on port %s: %v", port, err))
 	}

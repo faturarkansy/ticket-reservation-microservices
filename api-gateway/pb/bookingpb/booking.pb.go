@@ -281,7 +281,7 @@ var File_booking_proto protoreflect.FileDescriptor
 
 const file_booking_proto_rawDesc = "" +
 	"\n" +
-	"\rbooking.proto\x12\x02pb\"c\n" +
+	"\rbooking.proto\x12\abooking\"c\n" +
 	"\x14CreateBookingRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x19\n" +
 	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12\x17\n" +
@@ -304,11 +304,11 @@ const file_booking_proto_rawDesc = "" +
 	"\aseat_id\x18\x04 \x01(\tR\x06seatId\x12\x16\n" +
 	"\x06status\x18\x05 \x01(\tR\x06status\x12\x1f\n" +
 	"\vtotal_price\x18\x06 \x01(\x01R\n" +
-	"totalPrice2\x93\x01\n" +
-	"\x0eBookingService\x12D\n" +
-	"\rCreateBooking\x12\x18.pb.CreateBookingRequest\x1a\x19.pb.CreateBookingResponse\x12;\n" +
+	"totalPrice2\xa7\x01\n" +
+	"\x0eBookingService\x12N\n" +
+	"\rCreateBooking\x12\x1d.booking.CreateBookingRequest\x1a\x1e.booking.CreateBookingResponse\x12E\n" +
 	"\n" +
-	"GetBooking\x12\x15.pb.GetBookingRequest\x1a\x16.pb.GetBookingResponseB\x14Z\x12booking-service/pbb\x06proto3"
+	"GetBooking\x12\x1a.booking.GetBookingRequest\x1a\x1b.booking.GetBookingResponseB\x14Z\x12booking-service/pbb\x06proto3"
 
 var (
 	file_booking_proto_rawDescOnce sync.Once
@@ -324,16 +324,16 @@ func file_booking_proto_rawDescGZIP() []byte {
 
 var file_booking_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_booking_proto_goTypes = []any{
-	(*CreateBookingRequest)(nil),  // 0: pb.CreateBookingRequest
-	(*CreateBookingResponse)(nil), // 1: pb.CreateBookingResponse
-	(*GetBookingRequest)(nil),     // 2: pb.GetBookingRequest
-	(*GetBookingResponse)(nil),    // 3: pb.GetBookingResponse
+	(*CreateBookingRequest)(nil),  // 0: booking.CreateBookingRequest
+	(*CreateBookingResponse)(nil), // 1: booking.CreateBookingResponse
+	(*GetBookingRequest)(nil),     // 2: booking.GetBookingRequest
+	(*GetBookingResponse)(nil),    // 3: booking.GetBookingResponse
 }
 var file_booking_proto_depIdxs = []int32{
-	0, // 0: pb.BookingService.CreateBooking:input_type -> pb.CreateBookingRequest
-	2, // 1: pb.BookingService.GetBooking:input_type -> pb.GetBookingRequest
-	1, // 2: pb.BookingService.CreateBooking:output_type -> pb.CreateBookingResponse
-	3, // 3: pb.BookingService.GetBooking:output_type -> pb.GetBookingResponse
+	0, // 0: booking.BookingService.CreateBooking:input_type -> booking.CreateBookingRequest
+	2, // 1: booking.BookingService.GetBooking:input_type -> booking.GetBookingRequest
+	1, // 2: booking.BookingService.CreateBooking:output_type -> booking.CreateBookingResponse
+	3, // 3: booking.BookingService.GetBooking:output_type -> booking.GetBookingResponse
 	2, // [2:4] is the sub-list for method output_type
 	0, // [0:2] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name

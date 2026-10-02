@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 
 	"booking-service/event"
 	"booking-service/handler"
@@ -19,53 +20,104 @@ import (
 )
 
 func main() {
-	// 1. Inisialisasi Database PostgreSQL (booking_db di Port 5433)
-	dbConnStr := "host=localhost port=5433 user=booking_user password=booking_password dbname=booking_db sslmode=disable"
-	db, err := sql.Open("postgres", dbConnStr)
+	// 1. Koneksi Database PostgreSQL (Port 5433 & User booking_user)
+	dbHost := os.Getenv("DB_HOST")
+	if dbHost == "" {
+		dbHost = "localhost"
+	}
+	dbUser := os.Getenv("DB_USER")
+	if dbUser == "" {
+		dbUser = "booking_user"
+	}
+	dbPass := os.Getenv("DB_PASSWORD")
+	if dbPass == "" {
+		dbPass = "booking_password"
+	}
+	dbName := os.Getenv("DB_NAME")
+	if dbName == "" {
+		dbName = "booking_db"
+	}
+	dbPort := os.Getenv("DB_PORT")
+	if dbPort == "" {
+		dbPort = "5433"
+	}
+
+	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		dbHost, dbPort, dbUser, dbPass, dbName)
+
+	db, err := sql.Open("postgres", dsn)
 	if err != nil {
-		log.Fatalf("Failed to connect to PostgreSQL: %v", err)
+		log.Fatalf("Failed to connect to DB: %v", err)
 	}
 	defer db.Close()
 
 	if err := db.Ping(); err != nil {
-		log.Fatalf("PostgreSQL connection ping failed: %v", err)
+		log.Fatalf("DB ping failed: %v", err)
 	}
-	fmt.Println("Connected to PostgreSQL (booking_db)...")
+	log.Println("Connected to PostgreSQL (booking_db)!")
 
-	// 2. Inisialisasi gRPC Client ke Seat Service (Port :50051)
-	seatConn, err := grpc.Dial("127.0.0.1:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	// 2. Koneksi ke gRPC Seat Service Client
+	seatServiceHost := os.Getenv("SEAT_SERVICE_HOST")
+	if seatServiceHost == "" {
+		seatServiceHost = "localhost:50051"
+	}
+
+	seatConn, err := grpc.NewClient(seatServiceHost, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("Failed to connect to Seat Service: %v", err)
 	}
 	defer seatConn.Close()
 	seatClient := seatpb.NewSeatServiceClient(seatConn)
 
-	// 3. Inisialisasi RabbitMQ Publisher (Port 5672)
-	amqpURL := "amqp://guest:guest@localhost:5672/"
-	publisher, err := event.NewEventPublisher(amqpURL, "booking_created_queue")
-	if err != nil {
-		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
+	// 3. Setup RabbitMQ Event Publisher
+	rabbitmqURL := os.Getenv("RABBITMQ_URL")
+	if rabbitmqURL == "" {
+		rabbitmqURL = "amqp://guest:guest@localhost:5672/"
 	}
-	defer publisher.Close()
-	fmt.Println("Connected to RabbitMQ Event Broker...")
 
-	// 4. Setup Repository & Handler
-	bookingRepo := repository.NewBookingRepository(db)
-	bookingHandler := handler.NewBookingHandler(bookingRepo, seatClient, publisher)
+	exchangeName := os.Getenv("RABBITMQ_EXCHANGE")
+	if exchangeName == "" {
+		exchangeName = "booking_events"
+	}
 
-	// 5. Setup gRPC Server
-	port := ":50052"
-	lis, err := net.Listen("tcp", port)
+	publisher, err := event.NewEventPublisher(rabbitmqURL, exchangeName)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to listen on port %s: %v", port, err))
+		log.Printf("Warning: Failed to setup RabbitMQ publisher: %v", err)
+	} else {
+		defer publisher.Close()
+	}
+
+	// 4. Inisialisasi Repository & Handler
+	repo := repository.NewBookingRepository(db)
+	bookingHandler := handler.NewBookingHandler(repo, seatClient, publisher)
+
+	// 5. Start gRPC Server
+	grpcPort := os.Getenv("GRPC_PORT")
+	if grpcPort == "" {
+		grpcPort = "50052"
+	}
+
+	lis, err := net.Listen("tcp", "0.0.0.0:"+grpcPort)
+	if err != nil {
+		log.Fatalf("Failed to listen on port %s: %v", grpcPort, err)
 	}
 
 	grpcServer := grpc.NewServer()
+
+	// 🟢 Register Booking Handler
 	pb.RegisterBookingServiceServer(grpcServer, bookingHandler)
+
+	// 🟢 Register gRPC Reflection
 	reflection.Register(grpcServer)
 
-	fmt.Printf("Booking gRPC Service is running on port %s...\n", port)
+	log.Printf("Booking Service (gRPC) running on port %s...", grpcPort)
+
+	// 🟢 CETAK LOG SERVICE YANG TERDAFTAR DI SERVER INI
+	for serviceName := range grpcServer.GetServiceInfo() {
+		log.Printf("Registered gRPC Service: %s", serviceName)
+	}
+
 	if err := grpcServer.Serve(lis); err != nil {
-		panic(fmt.Sprintf("Failed to serve gRPC: %v", err))
+		log.Fatalf("Failed to serve gRPC: %v", err)
 	}
 }

@@ -19,8 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	BookingService_CreateBooking_FullMethodName = "/pb.BookingService/CreateBooking"
-	BookingService_GetBooking_FullMethodName    = "/pb.BookingService/GetBooking"
+	BookingService_CreateBooking_FullMethodName = "/booking.BookingService/CreateBooking"
+	BookingService_GetBooking_FullMethodName    = "/booking.BookingService/GetBooking"
 )
 
 // BookingServiceClient is the client API for BookingService service.
@@ -142,7 +142,7 @@ func _BookingService_GetBooking_Handler(srv interface{}, ctx context.Context, de
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var BookingService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "pb.BookingService",
+	ServiceName: "booking.BookingService",
 	HandlerType: (*BookingServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

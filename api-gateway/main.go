@@ -15,7 +15,7 @@ import (
 
 func main() {
 	// 1. Koneksi gRPC ke Seat Service (:50051)
-	seatConn, err := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	seatConn, err := grpc.Dial("127.0.0.1:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("Failed to connect to Seat Service: %v", err)
 	}
@@ -24,7 +24,7 @@ func main() {
 	seatHandler := handler.NewSeatHandler(seatClient)
 
 	// 2. Koneksi gRPC ke Booking Service (:50052)
-	bookingConn, err := grpc.Dial("localhost:50052", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	bookingConn, err := grpc.Dial("127.0.0.1:50052", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("Failed to connect to Booking Service: %v", err)
 	}
