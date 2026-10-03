@@ -74,6 +74,7 @@ func (h *BookingHandler) CreateBooking(ctx context.Context, req *pb.CreateBookin
 		EventID:    req.GetEventId(),
 		SeatID:     req.GetSeatId(),
 		TotalPrice: defaultPrice,
+		Status:     "PENDING",
 	}
 	
 	if err := h.publisher.PublishBookingCreated(ctx, eventPayload); err != nil {

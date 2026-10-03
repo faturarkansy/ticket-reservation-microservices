@@ -80,12 +80,11 @@ func main() {
 		exchangeName = "booking_events"
 	}
 
-	publisher, err := event.NewEventPublisher(rabbitmqURL, exchangeName)
+	publisher, err := event.NewEventPublisher("amqp://guest:guest@127.0.0.1:5672/", "booking_events")
 	if err != nil {
-		log.Printf("Warning: Failed to setup RabbitMQ publisher: %v", err)
-	} else {
-		defer publisher.Close()
+    	log.Fatalf("Failed to initialize publisher: %v", err)
 	}
+	defer publisher.Close()
 
 	// 4. Inisialisasi Repository & Handler
 	repo := repository.NewBookingRepository(db)

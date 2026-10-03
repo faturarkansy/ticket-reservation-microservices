@@ -15,15 +15,16 @@ type BookingCreatedEvent struct {
 	EventID    string  `json:"event_id"`
 	SeatID     string  `json:"seat_id"`
 	TotalPrice float64 `json:"total_price"`
+	Status     string  `json:"status"`
 }
 
 type EventPublisher struct {
-	conn    *amqp.Connection
-	ch      *amqp.Channel
-	queueName string
+	conn         *amqp.Connection
+	ch           *amqp.Channel
+	exchangeName string
 }
 
-func NewEventPublisher(amqpURL string, queueName string) (*EventPublisher, error) {
+func NewEventPublisher(amqpURL string, exchangeName string) (*EventPublisher, error) {
 	conn, err := amqp.Dial(amqpURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to RabbitMQ: %w", err)
@@ -34,22 +35,24 @@ func NewEventPublisher(amqpURL string, queueName string) (*EventPublisher, error
 		return nil, fmt.Errorf("failed to open a channel: %w", err)
 	}
 
-	_, err = ch.QueueDeclare(
-		queueName, // name
-		true,      // durable
-		false,     // delete when unused
-		false,     // exclusive
-		false,     // no-wait
-		nil,       // arguments
+	// Declare Topic Exchange 'booking_events'
+	err = ch.ExchangeDeclare(
+		exchangeName, // name ("booking_events")
+		"topic",        // type
+		true,         // durable
+		false,        // auto-deleted
+		false,        // internal
+		false,        // no-wait
+		nil,          // arguments
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to declare a queue: %w", err)
+		return nil, fmt.Errorf("failed to declare exchange: %w", err)
 	}
 
 	return &EventPublisher{
-		conn:      conn,
-		ch:        ch,
-		queueName: queueName,
+		conn:         conn,
+		ch:           ch,
+		exchangeName: exchangeName,
 	}, nil
 }
 
@@ -59,12 +62,13 @@ func (p *EventPublisher) PublishBookingCreated(ctx context.Context, event Bookin
 		return fmt.Errorf("failed to marshal event: %w", err)
 	}
 
+	// Publish ke Exchange 'booking_events' dengan Routing Key 'booking.created'
 	err = p.ch.PublishWithContext(
 		ctx,
-		"",          // exchange
-		p.queueName, // routing key
-		false,       // mandatory
-		false,       // immediate
+		p.exchangeName,    // 🟢 Exchange 'booking_events'
+		"booking.created", // 🟢 Routing Key
+		false,             // mandatory
+		false,             // immediate
 		amqp.Publishing{
 			ContentType: "application/json",
 			Body:        body,
@@ -74,7 +78,7 @@ func (p *EventPublisher) PublishBookingCreated(ctx context.Context, event Bookin
 		return fmt.Errorf("failed to publish message: %w", err)
 	}
 
-	log.Printf("Published BookingCreatedEvent: %s to queue %s", event.BookingID, p.queueName)
+	log.Printf("🚀 Published BookingCreatedEvent: %s to exchange %s", event.BookingID, p.exchangeName)
 	return nil
 }
 
