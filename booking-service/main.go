@@ -72,7 +72,7 @@ func main() {
 	// 3. Setup RabbitMQ Event Publisher
 	rabbitmqURL := os.Getenv("RABBITMQ_URL")
 	if rabbitmqURL == "" {
-		rabbitmqURL = "amqp://guest:guest@localhost:5672/"
+		rabbitmqURL = "amqp://guest:guest@127.0.0.1:5672/"
 	}
 
 	exchangeName := os.Getenv("RABBITMQ_EXCHANGE")
@@ -80,15 +80,22 @@ func main() {
 		exchangeName = "booking_events"
 	}
 
-	publisher, err := event.NewEventPublisher("amqp://guest:guest@127.0.0.1:5672/", "booking_events")
+	publisher, err := event.NewEventPublisher(rabbitmqURL, exchangeName)
 	if err != nil {
-    	log.Fatalf("Failed to initialize publisher: %v", err)
+		log.Fatalf("Failed to initialize publisher: %v", err)
 	}
 	defer publisher.Close()
 
 	// 4. Inisialisasi Repository & Handler
 	repo := repository.NewBookingRepository(db)
 	bookingHandler := handler.NewBookingHandler(repo, seatClient, publisher)
+
+	// 🟢 4.5. Setup RabbitMQ Payment Consumer (Diletakkan di sini)
+	paymentConsumer, err := event.NewPaymentConsumer(rabbitmqURL, repo)
+	if err != nil {
+		log.Fatalf("Failed to start Payment Consumer: %v", err)
+	}
+	paymentConsumer.ListenPaymentEvents()
 
 	// 5. Start gRPC Server
 	grpcPort := os.Getenv("GRPC_PORT")
@@ -103,15 +110,14 @@ func main() {
 
 	grpcServer := grpc.NewServer()
 
-	// 🟢 Register Booking Handler
+	// Register Booking Handler
 	pb.RegisterBookingServiceServer(grpcServer, bookingHandler)
 
-	// 🟢 Register gRPC Reflection
+	// Register gRPC Reflection
 	reflection.Register(grpcServer)
 
 	log.Printf("Booking Service (gRPC) running on port %s...", grpcPort)
 
-	// 🟢 CETAK LOG SERVICE YANG TERDAFTAR DI SERVER INI
 	for serviceName := range grpcServer.GetServiceInfo() {
 		log.Printf("Registered gRPC Service: %s", serviceName)
 	}
