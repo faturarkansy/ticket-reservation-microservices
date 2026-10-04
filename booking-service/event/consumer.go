@@ -10,12 +10,14 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-type PaymentCompletedEvent struct {
+// PaymentEvent struct generik untuk menangani event payment (SUCCESS / FAILED)
+type PaymentEvent struct {
 	PaymentID string  `json:"payment_id"`
 	BookingID string  `json:"booking_id"`
+	SeatID    string  `json:"seat_id"`
 	UserID    string  `json:"user_id"`
 	Amount    float64 `json:"amount"`
-	Status    string  `json:"status"`
+	Status    string  `json:"status"` // "SUCCESS" atau "FAILED"
 }
 
 type PaymentConsumer struct {
@@ -50,7 +52,7 @@ func NewPaymentConsumer(amqpURL string, repo repository.BookingRepository) (*Pay
 	}
 
 	q, err := ch.QueueDeclare(
-		"booking_payment_queue", // Queue khusus booking-service untuk mendengarkan event payment
+		"booking_payment_queue", // Queue khusus booking-service
 		true,
 		false,
 		false,
@@ -61,10 +63,22 @@ func NewPaymentConsumer(amqpURL string, repo repository.BookingRepository) (*Pay
 		return nil, err
 	}
 
-	// Bind queue ke routing key 'payment.completed'
+	// 🟢 Bind queue ke routing key 'payment.completed'
 	err = ch.QueueBind(
 		q.Name,
 		"payment.completed",
+		exchangeName,
+		false,
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// 🟢 Bind queue ke routing key 'payment.failed' (Untuk Saga Compensation)
+	err = ch.QueueBind(
+		q.Name,
+		"payment.failed",
 		exchangeName,
 		false,
 		nil,
@@ -94,25 +108,32 @@ func (c *PaymentConsumer) ListenPaymentEvents() {
 		log.Fatalf("Failed to register payment consumer: %v", err)
 	}
 
-	log.Println(" [*] Booking Service Payment Consumer listening for 'payment.completed' events...")
+	log.Println(" [*] Booking Service Payment Consumer listening for 'payment.*' events...")
 
 	go func() {
 		for d := range msgs {
-			var event PaymentCompletedEvent
+			var event PaymentEvent
 			if err := json.Unmarshal(d.Body, &event); err != nil {
 				log.Printf("Error unmarshaling payment event: %v", err)
 				continue
 			}
 
-			log.Printf("📥 [PAYMENT RECEIVED]: Updating BookingID: %s to status: %s", event.BookingID, event.Status)
+			log.Printf("📥 [PAYMENT EVENT RECEIVED]: BookingID: %s | Status: %s", event.BookingID, event.Status)
 
-			// Update status di database booking
+			// 🟢 Logika Kompensasi Saga berdasarkan status pembayaran
+			var targetStatus string
 			if event.Status == "SUCCESS" {
-				err := c.repo.UpdateBookingStatus(context.Background(), event.BookingID, "PAID")
+				targetStatus = "PAID"
+			} else if event.Status == "FAILED" {
+				targetStatus = "CANCELLED"
+			}
+
+			if targetStatus != "" {
+				err := c.repo.UpdateBookingStatus(context.Background(), event.BookingID, targetStatus)
 				if err != nil {
-					log.Printf("❌ Failed to update booking status: %v", err)
+					log.Printf("❌ Failed to update booking status for BookingID %s: %v", event.BookingID, err)
 				} else {
-					log.Printf("✅ BookingID: %s successfully updated to PAID", event.BookingID)
+					log.Printf("✅ BookingID: %s status updated to %s", event.BookingID, targetStatus)
 				}
 			}
 		}

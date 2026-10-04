@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 
+	"seat-service/event"
 	"seat-service/handler"
 	"seat-service/pb"
 	"seat-service/repository"
@@ -39,6 +41,20 @@ func main() {
 	// 3. Setup Repository & Handler
 	seatRepo := repository.NewSeatRepository(db)
 	seatHandler := handler.NewSeatHandler(seatRepo, redisClient)
+
+	// 🟢 Deklarasi rabbitmqURL
+	rabbitmqURL := os.Getenv("RABBITMQ_URL")
+	if rabbitmqURL == "" {
+		rabbitmqURL = "amqp://guest:guest@127.0.0.1:5672/"
+	}
+
+	// 🟢 Oper redisClient ke NewSeatPaymentConsumer agar dapat menghapus lock Redis
+	paymentConsumer, err := event.NewSeatPaymentConsumer(rabbitmqURL, seatRepo, redisClient)
+	if err != nil {
+		log.Printf("⚠️ Warning: Failed to start Seat Payment Consumer: %v", err)
+	} else {
+		paymentConsumer.ListenPaymentEvents()
+	}
 
 	// 4. Setup gRPC Server
 	port := ":50051"

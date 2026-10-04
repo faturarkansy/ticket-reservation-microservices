@@ -11,10 +11,11 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-// PaymentCompletedEvent payload untuk RabbitMQ
-type PaymentCompletedEvent struct {
+// PaymentEvent payload untuk RabbitMQ (Mendukung SUCCESS dan FAILED)
+type PaymentEvent struct {
 	PaymentID string  `json:"payment_id"`
 	BookingID string  `json:"booking_id"`
+	SeatID    string  `json:"seat_id"` // 🟢 Ditambahkan untuk pelepasan kursi di seat-service
 	UserID    string  `json:"user_id"`
 	Amount    float64 `json:"amount"`
 	Status    string  `json:"status"` // "SUCCESS" atau "FAILED"
@@ -53,7 +54,8 @@ func NewPaymentPublisher(amqpURL, exchangeName string) (*PaymentPublisher, error
 	return &PaymentPublisher{conn: conn, ch: ch, exchangeName: exchangeName}, nil
 }
 
-func (p *PaymentPublisher) PublishPaymentCompleted(ctx context.Context, event PaymentCompletedEvent) error {
+// PublishPaymentEvent fleksibel mengirim dengan routingKey "payment.completed" atau "payment.failed"
+func (p *PaymentPublisher) PublishPaymentEvent(ctx context.Context, event PaymentEvent, routingKey string) error {
 	body, err := json.Marshal(event)
 	if err != nil {
 		return err
@@ -62,7 +64,7 @@ func (p *PaymentPublisher) PublishPaymentCompleted(ctx context.Context, event Pa
 	err = p.ch.PublishWithContext(
 		ctx,
 		p.exchangeName,
-		"payment.completed", // Routing Key khusus event pembayaran
+		routingKey, // 🟢 Routing key dinamis
 		false,
 		false,
 		amqp.Publishing{
@@ -74,7 +76,8 @@ func (p *PaymentPublisher) PublishPaymentCompleted(ctx context.Context, event Pa
 		return err
 	}
 
-	log.Printf("💳 [PAYMENT EVENT PUBLISHED]: PaymentID: %s | BookingID: %s | Status: %s", event.PaymentID, event.BookingID, event.Status)
+	log.Printf("💳 [PAYMENT EVENT PUBLISHED - %s]: PaymentID: %s | BookingID: %s | SeatID: %s | Status: %s",
+		routingKey, event.PaymentID, event.BookingID, event.SeatID, event.Status)
 	return nil
 }
 
@@ -93,28 +96,28 @@ func main() {
 
 	log.Println("💳 Payment Service is starting on port :50053...")
 
-	// Simulasi pemrosesan transaksi pembayaran
-	// Untuk pengujian awal Hari Ke-8: Jalankan simulasi pembayaran otomatis
-	simualtePaymentProcess(publisher)
+	// 🟢 Simulasi skenario pembayaran GAGAL untuk pengujian Saga Compensation Logic Hari Ke-9
+	simulatePaymentFailureProcess(publisher)
 }
 
-func simualtePaymentProcess(pub *PaymentPublisher) {
+func simulatePaymentFailureProcess(pub *PaymentPublisher) {
 	ctx := context.Background()
 
-	log.Println(" [*] Payment Service Ready. Ready to process transaction requests...")
+	log.Println(" [*] Payment Service Ready. Simulating payment failure scenario...")
 	
-	// Simulasi event pembayaran berhasil untuk pengujian
 	time.Sleep(2 * time.Second)
 	
-	paymentEvent := PaymentCompletedEvent{
+	paymentEvent := PaymentEvent{
 		PaymentID: "pay-" + uuid.New().String()[:8],
-		BookingID: "bk-4e30230f", // ID dari booking hari ke-7
+		BookingID: "bk-4e30230f", // ID booking target pengujian
+		SeatID:    "seat-2",       // ID seat yang akan dibatalkan
 		UserID:    "usr-100",
 		Amount:    150000.00,
-		Status:    "SUCCESS",
+		Status:    "FAILED",
 	}
 
-	if err := pub.PublishPaymentCompleted(ctx, paymentEvent); err != nil {
-		log.Printf("Failed to publish payment event: %v", err)
+	// Publish event dengan routing key "payment.failed"
+	if err := pub.PublishPaymentEvent(ctx, paymentEvent, "payment.failed"); err != nil {
+		log.Printf("Failed to publish payment failed event: %v", err)
 	}
 }

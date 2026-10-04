@@ -65,8 +65,8 @@ func (p *EventPublisher) PublishBookingCreated(ctx context.Context, event Bookin
 	// Publish ke Exchange 'booking_events' dengan Routing Key 'booking.created'
 	err = p.ch.PublishWithContext(
 		ctx,
-		p.exchangeName,    // 🟢 Exchange 'booking_events'
-		"booking.created", // 🟢 Routing Key
+		p.exchangeName,    //  Exchange 'booking_events'
+		"booking.created", //  Routing Key
 		false,             // mandatory
 		false,             // immediate
 		amqp.Publishing{
